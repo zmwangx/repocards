@@ -1,0 +1,15 @@
+{
+  "license": "WTFPL",
+  "dependencies": {
+    "cross-fetch": "^3.0.5",
+    "glob": "^7.1.6",
+    "graphql-request": "^2.0.0",
+    "https-proxy-agent": "^5.0.0",
+    "mustache": "^4.0.1",
+    "puppeteer": "^5.2.1"
+  },
+  "devDependencies": {
+    "ava": "^3.10.1",
+    "rewire": "^5.0.0"
+  }
+}
