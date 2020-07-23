@@ -1,0 +1,44 @@
+name: update
+on:
+  push:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          make deps
+      - name: Install and configure fonts
+        run: |
+          set -x
+          sudo apt install -y --no-install-recommends fontconfig
+          mkdir fonts && cd fonts
+          wget -nv https://noto-website-2.storage.googleapis.com/pkgs/Noto-hinted.zip
+          unzip Noto-hinted.zip NotoColorEmoji.ttf
+          wget -nv -O Inter.zip 'https://fonts.google.com/download?family=Inter'
+          unzip Inter.zip
+          mkdir -p /usr/local/share/fonts
+          sudo find . -name '*.ttf' -exec cp -t /usr/local/share/fonts '{}' +
+          sudo chmod 644 /usr/local/share/fonts/*.ttf
+          sudo fc-cache
+          fc-match Inter
+          fc-match 'Noto Color Emoji'
+      - name: Update cards
+        run: |
+          make
+        env:
+          # A separate personal access token is required to read public repos.
+          GITHUB_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+      - name: Commit and push changes
+        run: |
+          git config user.name 'github-actions'
+          git config user.email 'actions@github.com'
+          git add docs
+          git diff --cached --quiet || git commit -m 'Update cards (from GitHub Actions)'
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
