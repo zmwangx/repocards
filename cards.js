@@ -107,14 +107,14 @@ const formatCount = count => {
     if (repository.owner.viewerIsAMember !== undefined) {
       continue;
     }
-    const repositoryName =
-      repository.owner.login === data.viewer.login
-        ? repository.name
-        : repository.nameWithOwner;
     const content = Mustache.render(
       cardHTML,
       {
-        name: repositoryName,
+        name: repository.name,
+        owner:
+          repository.owner.login === data.viewer.login
+            ? null
+            : repository.owner.login,
         // Strip enclosing <div></div> so that the description could fit in a
         // <p></p>.
         descriptionHTML: repository.descriptionHTML.replace(
@@ -136,11 +136,17 @@ const formatCount = count => {
     await page.setViewport(viewport);
     await page.setContent(content);
     const element = await page.$("body > div");
-    const screenshotPath = path.join(generatedDir, `${repositoryName}.png`);
-    screenshotPaths.push(screenshotPath);
-    if (repositoryName.includes("/")) {
+    let screenshotPath;
+    if (repository.owner.login === data.viewer.login) {
+      screenshotPath = path.join(generatedDir, `${repository.name}.png`);
+    } else {
+      screenshotPath = path.join(
+        generatedDir,
+        `${repository.nameWithOwner}.png`
+      );
       await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
     }
+    screenshotPaths.push(screenshotPath);
     console.log(
       `${repository.nameWithOwner}: ${path.relative("", screenshotPath)}`
     );
