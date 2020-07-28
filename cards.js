@@ -144,7 +144,7 @@ const formatCount = count => {
     console.log(
       `${repository.nameWithOwner}: ${path.relative("", screenshotPath)}`
     );
-    await element.screenshot({ path: screenshotPath });
+    await element.screenshot({ path: screenshotPath, omitBackground: true });
     await page.close();
   }
   await browser.close();
