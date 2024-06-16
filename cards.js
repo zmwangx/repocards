@@ -1,23 +1,23 @@
-const child_process = require("child_process");
-const fs = require("fs").promises;
-const path = require("path");
+// @ts-check
 
-const glob = require("glob");
-const Mustache = require("mustache");
-const puppeteer = require("puppeteer");
+import child_process from "child_process";
+import fs from "fs/promises";
+import path from "path";
 
-const api = require("./api");
+import { glob } from "glob";
+import Mustache from "mustache";
+import { chromium } from "playwright";
 
+import * as api from "./api.js";
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const templatesDir = path.join(__dirname, "templates");
 const cardHTMLPath = path.join(templatesDir, "card.html");
 const frameworksCSSPath = path.join(
   templatesDir,
   "frameworks-a1b48af6102ccb92f5490b71096b404b.css"
 );
-const githubCSSPath = path.join(
-  templatesDir,
-  "github-536f87adf120294bb4c70c32cb21f032.css"
-);
+const githubCSSPath = path.join(templatesDir, "github-536f87adf120294bb4c70c32cb21f032.css");
 const galleryHTMLPath = path.join(templatesDir, "gallery.html");
 
 // Generate images into docs/ for GitHub Pages.
@@ -27,8 +27,8 @@ const generatedDir = path.join(__dirname, "docs");
 const viewport = {
   width: 320,
   height: 568,
-  deviceScaleFactor: 2,
 };
+const deviceScaleFactor = 2;
 
 const spawnPromise = (command, args, options) => {
   return new Promise((resolve, reject) => {
@@ -90,9 +90,10 @@ const formatCount = count => {
   const githubCSS = await fs.readFile(githubCSSPath, "utf8");
   const galleryHTML = await fs.readFile(galleryHTMLPath, "utf8");
 
-  const browser = await puppeteer.launch({
+  const browser = await chromium.launch({
     // I know! Use root with discretion.
-    args: [...(process.getuid() === 0 ? ["--no-sandbox"] : [])],
+    args: [...(process.getuid?.() === 0 ? ["--no-sandbox"] : [])],
+    channel: "chrome",
   });
   const screenshotPaths = [];
   await fs.mkdir(generatedDir, { recursive: true });
@@ -111,16 +112,10 @@ const formatCount = count => {
       cardHTML,
       {
         name: repository.name,
-        owner:
-          repository.owner.login === data.viewer.login
-            ? null
-            : repository.owner.login,
+        owner: repository.owner.login === data.viewer.login ? null : repository.owner.login,
         // Strip enclosing <div></div> so that the description could fit in a
         // <p></p>.
-        descriptionHTML: repository.descriptionHTML.replace(
-          /^\s*<div>(.*)<\/div>\s*$/s,
-          "$1"
-        ),
+        descriptionHTML: repository.descriptionHTML.replace(/^\s*<div>(.*)<\/div>\s*$/s, "$1"),
         language: repository.primaryLanguage,
         starCount: repository.stargazers.totalCount,
         starCountStr: formatCount(repository.stargazers.totalCount),
@@ -132,25 +127,22 @@ const formatCount = count => {
         githubCSS,
       }
     );
-    const page = await browser.newPage();
-    await page.setViewport(viewport);
+    const page = await browser.newPage({
+      viewport: viewport,
+      deviceScaleFactor: deviceScaleFactor,
+    });
     await page.setContent(content);
     const element = await page.$("body > div");
     let screenshotPath;
     if (repository.owner.login === data.viewer.login) {
       screenshotPath = path.join(generatedDir, `${repository.name}.png`);
     } else {
-      screenshotPath = path.join(
-        generatedDir,
-        `${repository.nameWithOwner}.png`
-      );
+      screenshotPath = path.join(generatedDir, `${repository.nameWithOwner}.png`);
       await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
     }
     screenshotPaths.push(screenshotPath);
-    console.log(
-      `${repository.nameWithOwner}: ${path.relative("", screenshotPath)}`
-    );
-    await element.screenshot({ path: screenshotPath, omitBackground: true });
+    console.log(`${repository.nameWithOwner}: ${path.relative("", screenshotPath)}`);
+    await element?.screenshot({ path: screenshotPath, omitBackground: true });
     await page.close();
   }
   await browser.close();
@@ -169,8 +161,5 @@ const formatCount = count => {
       url: path.relative(generatedDir, screenshotPath),
     })),
   });
-  await fs.writeFile(
-    path.join(generatedDir, "gallery.html"),
-    galleryHTMLRendered
-  );
+  await fs.writeFile(path.join(generatedDir, "gallery.html"), galleryHTMLRendered);
 })();

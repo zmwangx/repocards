@@ -3,7 +3,7 @@
 default: cards
 
 deps:
-	yarn install
+	pnpm install
 	# macOS only
 	-command -v brew && ( brew ls optipng >/dev/null || brew install optipng )
 	# Debian-based only
