@@ -1,17 +1,16 @@
 // @ts-check
 
-import child_process from "child_process";
-import fs from "fs/promises";
-import path from "path";
+import child_process from "node:child_process";
+import fs from "node:fs/promises";
+import path from "node:path";
 
-import { glob } from "glob";
 import Mustache from "mustache";
 import { chromium } from "playwright";
 
 import * as api from "./api.js";
+import { formatCount } from "./format.js";
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
-const templatesDir = path.join(__dirname, "templates");
+const templatesDir = path.join(import.meta.dirname, "templates");
 const cardHTMLPath = path.join(templatesDir, "card.html");
 const frameworksCSSPath = path.join(
   templatesDir,
@@ -21,7 +20,7 @@ const githubCSSPath = path.join(templatesDir, "github-536f87adf120294bb4c70c32cb
 const galleryHTMLPath = path.join(templatesDir, "gallery.html");
 
 // Generate images into docs/ for GitHub Pages.
-const generatedDir = path.join(__dirname, "docs");
+const generatedDir = path.join(import.meta.dirname, "docs");
 
 // Use iPhone SE viewport.
 const viewport = {
@@ -48,23 +47,6 @@ const spawnPromise = (command, args, options) => {
   });
 };
 
-// In order to check how GitHub formats a particular count, check the advanced
-// search results for a particular star count, e.g.
-// https://github.com/search?q=stars%3A999..999&type=Repositories
-const formatCount = count => {
-  if (count < 1000) {
-    return `${count}`;
-  }
-  const hundreds = Math.round(count / 100);
-  const result = `${hundreds / 10}k`;
-  if (result.length < 6) {
-    return result;
-  } else {
-    // e.g. 100.1k, need to drop the decimal part.
-    return `${(hundreds / 10).toFixed(0)}k`;
-  }
-};
-
 (async () => {
   const data = await api.getdata();
   if (data === null) {
@@ -72,12 +54,15 @@ const formatCount = count => {
   }
 
   // Remove existing card images and corresponding directories.
-  for (const card of glob.sync(path.join(generatedDir, "**/*.png"))) {
+  for await (const card of fs.glob(path.join(generatedDir, "**/*.png"))) {
     await fs.unlink(card);
   }
-  for (const dir of glob.sync(path.join(generatedDir, "*/"))) {
+  for await (const entry of fs.glob(path.join(generatedDir, "*"), { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
     try {
-      await fs.rmdir(dir);
+      await fs.rmdir(path.join(entry.parentPath, entry.name));
     } catch (err) {
       if (err.code === undefined || err.code != "ENOTEMPTY") {
         console.error(err);

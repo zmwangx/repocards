@@ -1,7 +1,5 @@
 // @ts-check
 
-import { GraphQLClient, ClientError } from "graphql-request";
-
 // Required scopes: public_repo.
 const query = `
 query ($perPage: Int!, $cursor: String) {
@@ -36,39 +34,57 @@ query ($perPage: Int!, $cursor: String) {
 }
 `;
 
+const endpoint = "https://api.github.com/graphql";
+const timeoutMs = 30000;
+
+// Failures attributable to the API (as opposed to bugs on our side), reported
+// without a stack trace.
+class APIError extends Error {}
+
+const request = async (token, variables) => {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new APIError(
+      `HTTP ${response.status} ${response.statusText}: ${JSON.stringify(payload, null, 2)}`
+    );
+  }
+  if (payload?.errors) {
+    throw new APIError(`API error: ${JSON.stringify(payload.errors, null, 2)}`);
+  }
+  return payload.data;
+};
+
 export async function getdata() {
-  const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-  if (!GITHUB_TOKEN) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
     throw new Error("GITHUB_TOKEN environment variable not found");
   }
-  const client = new GraphQLClient("https://api.github.com/graphql", {
-    fetch: async (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(5000) }),
-    headers: {
-      authorization: `Bearer ${GITHUB_TOKEN}`,
-    },
-  });
   try {
     const perPage = 100;
-    let payload = await client.request(query, { perPage });
-    const data = payload;
-    while (payload.viewer.repositories.pageInfo.hasNextPage) {
-      payload = await client.request(query, {
+    const data = await request(token, { perPage });
+    let page = data;
+    while (page.viewer.repositories.pageInfo.hasNextPage) {
+      page = await request(token, {
         perPage,
-        cursor: payload.viewer.repositories.pageInfo.endCursor,
+        cursor: page.viewer.repositories.pageInfo.endCursor,
       });
-      data.viewer.repositories.nodes.push(...payload.viewer.repositories.nodes);
+      data.viewer.repositories.nodes.push(...page.viewer.repositories.nodes);
     }
     return data;
   } catch (err) {
-    if (err.name === "AbortError" || err.name === "FetchError") {
+    if (err instanceof APIError || err.name === "TimeoutError" || err.name === "AbortError") {
       console.error(`error: ${err.message}`);
-    } else if (err.type === "system") {
-      console.error(`error ${err.code}: ${err.message}`);
-    } else if (err instanceof ClientError) {
-      console.error(`API error: ${JSON.stringify(err.response.errors, null, 2)}`);
     } else {
-      console.log(err);
-      throw err;
+      console.error(err);
     }
     return null;
   }

@@ -1,9 +1,7 @@
-const rewire = require("rewire");
-const test = require("ava");
+import assert from "node:assert/strict";
+import test from "node:test";
 
-const cards = rewire("./cards");
-
-const formatCount = cards.__get__("formatCount");
+import { formatCount } from "./format.js";
 
 for (const [input, expected] of [
   [999, "999"],
@@ -19,7 +17,7 @@ for (const [input, expected] of [
   [100100, "100k"],
   [100500, "101k"],
 ]) {
-  test(`formatCount-${input}`, t => {
-    t.is(formatCount(input), expected);
+  test(`formatCount-${input}`, () => {
+    assert.equal(formatCount(input), expected);
   });
 }

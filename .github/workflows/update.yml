@@ -7,18 +7,27 @@ on:
 jobs:
   update:
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v2
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
           run_install: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: latest
       - name: Install dependencies
         run: |
-          make deps
+          # pnpm's SQLite store index intermittently fails to open on hosted
+          # macOS runners, which no retry inside pnpm covers.
+          for attempt in 1 2 3; do
+            make deps && exit 0
+            echo "::warning::make deps failed (attempt $attempt)"
+            sleep 5
+          done
+          exit 1
       - name: Update cards
         run: |
           make

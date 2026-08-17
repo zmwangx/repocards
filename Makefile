@@ -13,7 +13,7 @@ cards:
 	node cards.js
 
 test:
-	npx ava
+	node --test
 
 clean:
 	-@rm -f docs/*.png docs/*/*.png
