@@ -117,8 +117,8 @@ const formatCount = count => {
         // <p></p>.
         descriptionHTML: repository.descriptionHTML.replace(/^\s*<div>(.*)<\/div>\s*$/s, "$1"),
         language: repository.primaryLanguage,
-        starCount: repository.stargazers.totalCount,
-        starCountStr: formatCount(repository.stargazers.totalCount),
+        starCount: repository.stargazerCount,
+        starCountStr: formatCount(repository.stargazerCount),
         forkCount: repository.forkCount,
         forkCountStr: formatCount(repository.forkCount),
       },

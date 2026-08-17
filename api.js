@@ -24,9 +24,7 @@ query ($perPage: Int!, $cursor: String) {
           name
           color
         }
-        stargazers(first: 0) {
-          totalCount
-        }
+        stargazerCount
         forkCount
       }
       pageInfo {
